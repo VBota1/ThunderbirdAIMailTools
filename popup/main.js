@@ -48,10 +48,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // LoadSettings and Configure Service
     const stored = await browser.storage.local.get([
-        'activeProvider', 'geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiModel',
+        'privacyConsent', 'activeProvider', 'geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiModel',
         'claudeApiKey', 'claudeModel', 'ollamaApiKey', 'ollamaUrl', 'ollamaModel', 'keywords',
         'defaultTaskList'
     ]);
+
+    const privacyOverlay = document.getElementById('privacy-overlay');
+    const btnAgreePrivacy = document.getElementById('btn-agree-privacy');
+
+    if (!stored.privacyConsent) {
+        privacyOverlay.classList.remove('hidden');
+    }
+
+    btnAgreePrivacy.addEventListener('click', async () => {
+        await browser.storage.local.set({ privacyConsent: true });
+        privacyOverlay.classList.add('hidden');
+    });
 
     let activeProvider = stored.activeProvider || 'gemini';
     if (activeProviderSelect) {

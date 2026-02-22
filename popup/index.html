@@ -12,6 +12,22 @@
 </head>
 
 <body>
+    <div id="privacy-overlay" class="hidden">
+        <div class="privacy-content">
+            <h2>Privacy & Data Usage</h2>
+            <p>Welcome to AI Mail Tool! Before you begin, please review how your data is handled:</p>
+            <ul>
+                <li><strong>Data Processing:</strong> Email content you choose to summarize or reply to is transmitted
+                    securely to the AI provider you configure (e.g., Google, OpenAI, Anthropic).</li>
+                <li><strong>No Retention:</strong> This extension does not collect, store, or sell any personal data,
+                    telemetry, or analytics.</li>
+                <li><strong>Local Option:</strong> You can use Ollama for 100% local, private processing.</li>
+            </ul>
+            <p>By proceeding, you agree to these terms.</p>
+            <button id="btn-agree-privacy" class="btn-primary">I Agree. Let's Start!</button>
+        </div>
+    </div>
+
     <div id="app">
         <header>
             <div class="logo-container">
