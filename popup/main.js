@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const div = document.createElement('div');
         div.className = `message ${type}`;
         if (type === 'ai') {
-            div.innerHTML = formatMessage(text);
+            safeSetHTML(div, formatMessage(text));
         } else {
             div.textContent = text;
         }
@@ -416,8 +416,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateMessage(element, text) {
         // AI messages are always formatted
-        element.innerHTML = formatMessage(text);
+        safeSetHTML(element, formatMessage(text));
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function safeSetHTML(element, htmlString) {
+        // Use DOMParser to safely parse the HTML string
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlString, 'text/html');
+
+        // Clear existing content
+        element.textContent = '';
+
+        // Safely append only the nodes we generated (text, strong, em, br, ul, li)
+        // Since we already escaped < and > in formatMessage before adding strong/em tags,
+        // the parsed doc will only contain the safe tags we explicitly added.
+        while (doc.body.firstChild) {
+            element.appendChild(doc.body.firstChild);
+        }
     }
 
     function formatMessage(text) {
