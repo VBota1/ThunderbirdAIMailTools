@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "AI Mail Tool",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "license": "MIT",
     "description": "AI assistant for Thunderbird. Summarize emails, draft replies with custom instructions, create calendar tasks from emails, and perform bulk actions using Gemini, OpenAI, Claude, or Ollama.",
     "icons": {
@@ -28,14 +28,12 @@
     },
     "options_ui": {
         "page": "options.html",
-        "open_in_tab": false,
-        "browser_style": true
+        "open_in_tab": false
     },
     "browser_specific_settings": {
         "gecko": {
-            "id": "2b9d974d-0831-4b1e-bfdb-9ff67d4f81a1",
-            "strict_min_version": "140.0",
-            "strict_max_version": "147.*"
+            "id": "{2b9d974d-0831-4b1e-bfdb-9ff67d4f81a1}",
+            "strict_min_version": "140.0"
         }
     },
     "experiment_apis": {
