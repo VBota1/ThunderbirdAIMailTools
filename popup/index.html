@@ -1,24 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
     <title>AI Mail Tool</title>
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <div id="app">
         <header>
-            <h1>AI Mail Tool</h1>
+            <div class="logo-container">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#paint0_linear)" />
+                    <path d="M2 17L12 22L22 17" stroke="url(#paint1_linear)" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M2 12L12 17L22 12" stroke="url(#paint2_linear)" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <defs>
+                        <linearGradient id="paint0_linear" x1="2" y1="7" x2="22" y2="7" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#6366F1" />
+                            <stop offset="1" stop-color="#A855F7" />
+                        </linearGradient>
+                        <linearGradient id="paint1_linear" x1="2" y1="19.5" x2="22" y2="19.5"
+                            gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#6366F1" />
+                            <stop offset="1" stop-color="#A855F7" />
+                        </linearGradient>
+                        <linearGradient id="paint2_linear" x1="2" y1="14.5" x2="22" y2="14.5"
+                            gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#6366F1" />
+                            <stop offset="1" stop-color="#A855F7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <h1>AI Mail Tool</h1>
+            </div>
             <div class="header-actions">
-                <select id="active-provider-select" style="margin-right: 10px; padding: 4px;">
+                <select id="active-provider-select">
                     <option value="gemini">Google Gemini</option>
                     <option value="openai">OpenAI</option>
                     <option value="claude">Anthropic Claude</option>
                     <option value="ollama">Ollama (Local)</option>
                 </select>
-                <button id="popout-btn" title="Pop Out">↗️</button>
+                <button id="popout-btn" title="Pop Out" class="icon-button">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </button>
             </div>
         </header>
 
@@ -31,38 +65,87 @@
 
         <div id="input-area">
             <textarea id="prompt-input" placeholder="Ask me something..."></textarea>
-            <button id="send-btn">Send</button>
+            <button id="send-btn" class="btn-primary">
+                <span>Send</span>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
         </div>
 
         <!-- Context Actions -->
-        <div id="context-actions">
-            <button data-action="summarize" style="width: 100%;">Summarize Selected Email</button>
-            <div style="display: flex; gap: 5px; align-items: stretch; width: 100%;">
-                <textarea id="reply-instructions"
-                    placeholder="Optional reply instructions (e.g. Accept the meeting but suggest 3 PM...)"
-                    style="flex-grow: 1; min-width: 0; padding: 5px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; min-height: 40px; font-family: inherit; font-size: inherit;"></textarea>
-                <button data-action="reply" style="white-space: nowrap;">Draft Reply</button>
-            </div>
+        <div id="context-actions" class="action-panel">
+            <button data-action="summarize" class="btn-action">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
+                Summarize Selected Email
+            </button>
+
+            <details class="accordion">
+                <summary>
+                    <div class="summary-content">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                        <span>Draft Reply</span>
+                    </div>
+                    <svg class="chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </summary>
+                <div class="details-content row-layout">
+                    <textarea id="reply-instructions"
+                        placeholder="Optional reply instructions (e.g. Accept the meeting but suggest 3 PM...)"></textarea>
+                    <button data-action="reply" class="btn-primary btn-small">Draft Reply</button>
+                </div>
+            </details>
+
+            <details class="accordion">
+                <summary>
+                    <div class="summary-content">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Create Task from Email</span>
+                    </div>
+                    <svg class="chevron" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </summary>
+                <div class="details-content col-layout">
+                    <select id="task-list-select" class="full-width">
+                        <option value="">Loading lists...</option>
+                    </select>
+                    <textarea id="task-notes" placeholder="Optional task notes..."></textarea>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="task-include-summary"> Include AI summary in notes
+                    </label>
+                    <button data-action="create-task" class="btn-primary">Create Task</button>
+                </div>
+            </details>
         </div>
 
         <!-- Bulk Actions -->
-        <div id="bulk-actions">
+        <div id="bulk-actions" class="action-panel">
             <h3>Bulk Actions</h3>
-            <select id="bulk-time-range">
-                <option value="24h">Last 24 Hours</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="48h">Last 48 Hours</option>
-                <option value="7d">Last 7 Days</option>
-            </select>
+            <div class="bulk-header">
+                <select id="bulk-time-range">
+                    <option value="24h">Last 24 Hours</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="48h">Last 48 Hours</option>
+                    <option value="7d">Last 7 Days</option>
+                </select>
+            </div>
             <div class="button-group">
-                <button data-action="bulk-summarize">Summarize All</button>
-                <button data-action="bulk-summarize-unread">Summarize Unread</button>
-                <button data-action="bulk-read">Mark All Read</button>
+                <button data-action="bulk-summarize" class="btn-secondary">Summarize All</button>
+                <button data-action="bulk-summarize-unread" class="btn-secondary">Summarize Unread</button>
+                <button data-action="bulk-read" class="btn-secondary">Mark All Read</button>
             </div>
         </div>
-
-
-    </div>
     </div>
     <script type="module" src="main.js"></script>
 </body>

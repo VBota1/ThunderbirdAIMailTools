@@ -40,12 +40,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const activeProviderSelect = document.getElementById('active-provider-select');
 
+    // Create Task UI
+    const btnCreateTask = document.querySelector('button[data-action="create-task"]');
+    const taskListSelect = document.getElementById('task-list-select');
+    const taskNotes = document.getElementById('task-notes');
+    const taskIncludeSummary = document.getElementById('task-include-summary');
 
-    // LoadSettings
     // LoadSettings and Configure Service
     const stored = await browser.storage.local.get([
         'activeProvider', 'geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiModel',
-        'claudeApiKey', 'claudeModel', 'ollamaApiKey', 'ollamaUrl', 'ollamaModel', 'keywords'
+        'claudeApiKey', 'claudeModel', 'ollamaApiKey', 'ollamaUrl', 'ollamaModel', 'keywords',
+        'defaultTaskList'
     ]);
 
     let activeProvider = stored.activeProvider || 'gemini';
@@ -62,6 +67,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     aiService.configure(activeProvider, stored);
     checkConfig(activeProvider, stored);
+
+    // Load Task Lists for dropdown
+    try {
+        if (browser.calendarTasks) {
+            const lists = await browser.calendarTasks.getTaskLists();
+            taskListSelect.innerHTML = '<option value="">-- Choose a Task List --</option>';
+            lists.forEach(list => {
+                const option = document.createElement('option');
+                option.value = list.id;
+                option.textContent = list.name;
+                taskListSelect.appendChild(option);
+            });
+            if (stored.defaultTaskList) {
+                taskListSelect.value = stored.defaultTaskList;
+            }
+        } else {
+            taskListSelect.innerHTML = '<option value="">Tasks API Not Available</option>';
+        }
+    } catch (e) {
+        console.error("Failed to load task lists:", e);
+    }
 
     function checkConfig(provider, settings) {
         let isConfigured = false;
@@ -91,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             url: browser.runtime.getURL("popup/index.html"),
             type: "popup",
             width: 800,
-            height: 600
+            height: 800
         });
         window.close(); // Close the popup
     });
@@ -159,6 +185,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
 
+
+    btnCreateTask.addEventListener('click', async () => {
+        const message = await getDisplayedMessage();
+        if (!message) return addMessage('system', 'No message selected to create a task from.');
+
+        const listId = taskListSelect.value;
+        if (!listId) return addMessage('system', 'Please select a task list first.');
+
+        const fullMessage = await browser.messages.getFull(message.id);
+        let body = fullMessage.parts ? findBody(fullMessage.parts) : fullMessage.body;
+
+        addMessage('user', 'Create a task from this email.');
+        const msgId = addMessage('ai', 'Creating task...');
+
+        try {
+            let finalNotes = taskNotes.value.trim();
+
+            if (taskIncludeSummary.checked) {
+                updateMessage(msgId, 'Generating AI summary for task notes...');
+                const { keywords } = await browser.storage.local.get('keywords');
+                let prompt = `Please summarize this email from ${message.author}:\n`;
+                if (keywords && keywords.trim() !== "") {
+                    prompt += `\nPay special attention to these keywords: ${keywords}\n`;
+                }
+                prompt += `\n${body.substring(0, 5000)}`;
+
+                const summary = await aiService.generate(prompt);
+
+                if (finalNotes) {
+                    finalNotes += "\n\n--- AI Summary ---\n" + summary;
+                } else {
+                    finalNotes = "--- AI Summary ---\n" + summary;
+                }
+            }
+
+            finalNotes += `\n\nOriginal Subject: ${message.subject}`;
+            finalNotes += `\nFrom: ${message.author}`;
+
+            let dueDateStr = null;
+            if (message.date) {
+                // message.date is usually a Date object or timestamp
+                const dateObj = new Date(message.date);
+                if (!isNaN(dateObj.getTime())) {
+                    dueDateStr = dateObj.toISOString();
+                    // Add the human-readable date to the notes
+                    finalNotes += `\nReceived: ${dateObj.toLocaleString()}`;
+                }
+            }
+
+            const taskTitle = message.subject ? `Email: ${message.subject}` : 'Email Task';
+
+            updateMessage(msgId, 'Saving task to Thunderbird...');
+            await browser.calendarTasks.createTask(listId, taskTitle, dueDateStr, finalNotes);
+
+            updateMessage(msgId, '✅ Task successfully created!');
+            taskNotes.value = '';
+            taskIncludeSummary.checked = false;
+        } catch (e) {
+            console.error(e);
+            updateMessage(msgId, '❌ Failed to create task: ' + e.message);
+        }
+    });
 
     // Bulk Actions
     btnBulkSummarize.addEventListener('click', async () => {

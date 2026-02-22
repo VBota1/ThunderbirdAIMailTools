@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         ollamaApiKey: document.getElementById('ollama-apikey'),
         ollamaUrl: document.getElementById('ollama-url'),
         ollamaModel: document.getElementById('ollama-model'),
-        keywords: document.getElementById('keywords-input')
+        keywords: document.getElementById('keywords-input'),
+        defaultTaskList: document.getElementById('default-task-list')
     };
 
     const saveBtn = document.getElementById('save-btn');
@@ -22,6 +23,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (stored[key] !== undefined) {
             element.value = stored[key];
         }
+    }
+
+    // Load Task Lists
+    try {
+        if (browser.calendarTasks) {
+            const lists = await browser.calendarTasks.getTaskLists();
+            const listSelect = inputs.defaultTaskList;
+            listSelect.innerHTML = '<option value="">-- Choose a Task List --</option>';
+
+            lists.forEach(list => {
+                const option = document.createElement('option');
+                option.value = list.id;
+                option.textContent = list.name;
+                listSelect.appendChild(option);
+            });
+
+            // Re-apply stored value after populating
+            if (stored.defaultTaskList) {
+                listSelect.value = stored.defaultTaskList;
+            }
+        } else {
+            inputs.defaultTaskList.innerHTML = '<option value="">Tasks API Not Available</option>';
+        }
+    } catch (e) {
+        console.error("Failed to load task lists:", e);
+        inputs.defaultTaskList.innerHTML = '<option value="">Error loading lists</option>';
     }
 
     saveBtn.addEventListener('click', async () => {

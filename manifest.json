@@ -34,5 +34,21 @@
             "strict_min_version": "115.0",
             "strict_max_version": "147.*"
         }
+    },
+    "experiment_apis": {
+        "calendarTasks": {
+            "schema": "api/tasks/schema.json",
+            "parent": {
+                "scopes": [
+                    "addon_parent"
+                ],
+                "paths": [
+                    [
+                        "calendarTasks"
+                    ]
+                ],
+                "script": "api/tasks/implementation.js"
+            }
+        }
     }
 }

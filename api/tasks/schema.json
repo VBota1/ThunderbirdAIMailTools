@@ -1,0 +1,45 @@
+[
+    {
+        "namespace": "calendarTasks",
+        "description": "Experiment API for interacting with Thunderbird task lists.",
+        "functions": [
+            {
+                "name": "getTaskLists",
+                "type": "function",
+                "description": "Retrieves the available task lists (calendars supporting tasks).",
+                "async": true,
+                "parameters": []
+            },
+            {
+                "name": "createTask",
+                "type": "function",
+                "description": "Creates a new task in the specified list.",
+                "async": true,
+                "parameters": [
+                    {
+                        "name": "listId",
+                        "type": "string",
+                        "description": "The ID of the calendar/task list."
+                    },
+                    {
+                        "name": "title",
+                        "type": "string",
+                        "description": "The title or subject of the task."
+                    },
+                    {
+                        "name": "dueDateStr",
+                        "type": "string",
+                        "optional": true,
+                        "description": "The due date in ISO 8601 format."
+                    },
+                    {
+                        "name": "notes",
+                        "type": "string",
+                        "optional": true,
+                        "description": "The description/notes for the task."
+                    }
+                ]
+            }
+        ]
+    }
+]
