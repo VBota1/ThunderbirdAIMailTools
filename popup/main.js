@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // LoadSettings and Configure Service
     const stored = await browser.storage.local.get([
         'privacyConsent', 'activeProvider', 'geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiModel',
-        'claudeApiKey', 'claudeModel', 'ollamaApiKey', 'ollamaUrl', 'ollamaModel', 'keywords',
+        'claudeApiKey', 'claudeModel', 'mistralApiKey', 'mistralModel', 'ollamaApiKey', 'ollamaUrl', 'ollamaModel', 'keywords',
         'defaultTaskList'
     ]);
 
@@ -107,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'gemini': isConfigured = !!settings.geminiApiKey; break;
             case 'openai': isConfigured = !!settings.openaiApiKey; break;
             case 'claude': isConfigured = !!settings.claudeApiKey; break;
+            case 'mistral': isConfigured = !!settings.mistralApiKey; break;
             case 'ollama': isConfigured = true; break; // URL has default
         }
         if (!isConfigured) {

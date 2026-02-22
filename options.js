@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         openaiModel: document.getElementById('openai-model'),
         claudeApiKey: document.getElementById('claude-apikey'),
         claudeModel: document.getElementById('claude-model'),
+        mistralApiKey: document.getElementById('mistral-apikey'),
+        mistralModel: document.getElementById('mistral-model'),
         ollamaApiKey: document.getElementById('ollama-apikey'),
         ollamaUrl: document.getElementById('ollama-url'),
         ollamaModel: document.getElementById('ollama-model'),

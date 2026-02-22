@@ -1,8 +1,7 @@
 {
     "manifest_version": 3,
     "name": "AI Mail Tool",
-    "version": "2.0.3",
-    "license": "MIT",
+    "version": "2.1.0",
     "description": "AI assistant for Thunderbird. Summarize emails, draft replies with custom instructions, create calendar tasks from emails, and perform bulk actions using Gemini, OpenAI, Claude, or Ollama.",
     "icons": {
         "48": "icon.svg"

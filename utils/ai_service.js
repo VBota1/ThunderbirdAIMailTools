@@ -25,6 +25,10 @@ class AIService {
                 this.apiKey = settings.claudeApiKey || '';
                 this.model = settings.claudeModel || '';
                 break;
+            case 'mistral':
+                this.apiKey = settings.mistralApiKey || '';
+                this.model = settings.mistralModel || '';
+                break;
             case 'ollama':
                 this.ollamaUrl = settings.ollamaUrl || 'http://localhost:11434';
                 this.model = settings.ollamaModel || '';
@@ -47,6 +51,8 @@ class AIService {
                     return await this._callOpenAI(prompt, systemPrompt);
                 case 'claude':
                     return await this._callClaude(prompt, systemPrompt);
+                case 'mistral':
+                    return await this._callMistral(prompt, systemPrompt);
                 case 'ollama':
                     return await this._callOllama(prompt, systemPrompt);
                 default:
@@ -139,6 +145,34 @@ class AIService {
 
         const data = await response.json();
         return data.content[0].text;
+    }
+
+    async _callMistral(prompt, systemPrompt) {
+        const url = 'https://api.mistral.ai/v1/chat/completions';
+        const payload = {
+            model: this.model || "mistral-large-latest",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: prompt }
+            ]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Mistral API Error: ${response.status} - ${err}`);
+        }
+
+        const data = await response.json();
+        return data.choices[0].message.content;
     }
 
     async _callOllama(prompt, systemPrompt) {
