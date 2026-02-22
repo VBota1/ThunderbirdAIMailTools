@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>AI Mail Tool Settings</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            max-width: 600px;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .success {
+            color: green;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>AI Mail Tool Settings</h1>
+
+    <fieldset>
+        <legend>Google Gemini</legend>
+        <label for="gemini-apikey">API Key:</label>
+        <input type="password" id="gemini-apikey" placeholder="Enter Gemini API Key">
+        <label for="gemini-model">Model Name (Optional):</label>
+        <input type="text" id="gemini-model" placeholder="e.g. gemini-1.5-pro">
+    </fieldset>
+
+    <fieldset>
+        <legend>OpenAI</legend>
+        <label for="openai-apikey">API Key:</label>
+        <input type="password" id="openai-apikey" placeholder="Enter OpenAI API Key">
+        <label for="openai-model">Model Name (Optional):</label>
+        <input type="text" id="openai-model" placeholder="e.g. gpt-4o">
+    </fieldset>
+
+    <fieldset>
+        <legend>Anthropic Claude</legend>
+        <label for="claude-apikey">API Key:</label>
+        <input type="password" id="claude-apikey" placeholder="Enter Claude API Key">
+        <label for="claude-model">Model Name (Optional):</label>
+        <input type="text" id="claude-model" placeholder="e.g. claude-3-5-sonnet-20240620">
+    </fieldset>
+
+    <fieldset>
+        <legend>Ollama (Local)</legend>
+        <label for="ollama-apikey">API Key (Optional):</label>
+        <input type="password" id="ollama-apikey" placeholder="Enter Ollama API Key">
+        <label for="ollama-url">Ollama URL:</label>
+        <input type="text" id="ollama-url" value="http://localhost:11434">
+        <label for="ollama-model">Model Name (Optional):</label>
+        <input type="text" id="ollama-model" placeholder="e.g. llama3">
+    </fieldset>
+
+    <div id="keywords-section">
+        <label for="keywords-input">Summarization Keywords (Optional):</label>
+        <input type="text" id="keywords-input" placeholder="e.g. urgent, project X, invoice">
+        <small style="color: #666; font-size: 0.8em;">The AI will pay special attention to these keywords when
+            summarizing emails.</small>
+    </div>
+
+    <button id="save-btn">Save Settings</button>
+    <div id="status-msg" class="success">Settings saved!</div>
+
+    <script src="options.js"></script>
+</body>
+
+</html>
