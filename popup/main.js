@@ -332,15 +332,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const win = await browser.windows.getCurrent();
             if (win.type === 'popup' || win.type === 'panel') {
-                // We are in a detached window, find the main mail window
-                const mailWins = await browser.windows.getAll({ windowTypes: ['normal'] });
-                if (mailWins.length > 0) {
-                    // Use the first normal window (or ideally last focused)
-                    // Note: getLastFocused might return the popup itself if we aren't careful, 
-                    // but filtering by type 'normal' should work.
-                    // However, getAll is safer to ensure we get a list. 
-                    // Let's try to find the 'most likely' user window.
-                    tabs = await browser.tabs.query({ active: true, windowId: mailWins[0].id });
+                // We are in a detached window, find the main mail window or a message window
+                const allWins = await browser.windows.getAll({ populate: true });
+
+                // Prioritize message windows (dedicated email tabs) over the main window
+                const messageWins = allWins.filter(w => w.type === 'messageDisplay');
+                if (messageWins.length > 0) {
+                    tabs = await browser.tabs.query({ active: true, windowId: messageWins[0].id });
+                } else {
+                    const normalWins = allWins.filter(w => w.type === 'normal');
+                    if (normalWins.length > 0) {
+                        tabs = await browser.tabs.query({ active: true, windowId: normalWins[0].id });
+                    }
                 }
             } else {
                 // We are in the main window (or browser_action popup usually inherits context? 
@@ -479,25 +482,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function getDisplayedMessage() {
-        const tab = await getActiveMailTab();
-        if (!tab) return null;
-
-        // 1. Try to get the message currently displayed (e.g. in the reading pane)
+        // 1. First, try the most direct contextual approach
         try {
-            const displayed = await browser.messageDisplay.getDisplayedMessage(tab.id);
-            if (displayed) return displayed;
-        } catch (e) {
-            console.log("No displayed message found, checking selection...");
-        }
+            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length > 0) {
+                const tabId = tabs[0].id;
 
-        // 2. Try to get selected messages in the list
-        try {
-            const selected = await browser.mailTabs.getSelectedMessages(tab.id);
-            if (selected && selected.messages && selected.messages.length > 0) {
-                return selected.messages[0];
+                // Try message display first (for popped out windows)
+                try {
+                    const displayed = await browser.messageDisplay.getDisplayedMessage(tabId);
+                    if (displayed) return displayed;
+                } catch (e) { }
+
+                // Try selected messages next (for main window)
+                try {
+                    const selected = await browser.mailTabs.getSelectedMessages(tabId);
+                    if (selected && selected.messages && selected.messages.length > 0) {
+                        return selected.messages[0];
+                    }
+                } catch (e) { }
             }
         } catch (e) {
-            console.log("Error getting selected messages:", e);
+            console.log("Error querying current window tabs:", e);
+        }
+
+        // 2. If that fails (e.g., popup has its own window context), search all tabs globally
+        try {
+            const allTabs = await browser.tabs.query({});
+            // Sort to prioritize active tabs
+            allTabs.sort((a, b) => (b.active === a.active) ? 0 : b.active ? 1 : -1);
+
+            for (const tab of allTabs) {
+                // Skip the popup's own tab if possible
+                if (tab.url && tab.url.includes('popup/index.html')) continue;
+
+                try {
+                    const displayed = await browser.messageDisplay.getDisplayedMessage(tab.id);
+                    if (displayed) return displayed;
+                } catch (e) { }
+
+                try {
+                    const selected = await browser.mailTabs.getSelectedMessages(tab.id);
+                    if (selected && selected.messages && selected.messages.length > 0) {
+                        return selected.messages[0];
+                    }
+                } catch (e) { }
+            }
+        } catch (e) {
+            console.error("Error finding message via global tabs:", e);
         }
 
         return null;
