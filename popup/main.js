@@ -150,9 +150,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!message) return addMessage('system', 'No message selected.');
 
         const fullMessage = await browser.messages.getFull(message.id);
-        // Extract plain text body (simplified)
-        let body = fullMessage.parts ? findBody(fullMessage.parts) : fullMessage.body;
-        if (!body) body = "(No content found)";
+        // Extract plain text body
+        let body = findBody([fullMessage]);
+
+        if (!body || body.trim() === "") {
+            try {
+                const rawInfo = await browser.messages.getRaw(message.id);
+                let rawString = rawInfo;
+                if (rawInfo && typeof rawInfo.text === 'function') {
+                    rawString = await rawInfo.text();
+                } else if (typeof rawInfo !== 'string') {
+                    rawString = String(rawInfo);
+                }
+                // Raw info usually contains headers + body in raw MIME
+                // Let's do a rudimentary extraction pulling everything after the first double-newline
+                const parts = rawString.split(/\r?\n\r?\n/);
+                if (parts.length > 1) {
+                    // Shift off the headers, join the rest
+                    parts.shift();
+                    body = parts.join('\n\n');
+                    body = extractTextFromHtml(body); // Strip any HTML tags from raw payload
+                } else {
+                    body = rawString;
+                }
+            } catch (e) {
+                console.error("Failed to fetch raw message", e);
+            }
+        }
+
+        if (!body || body.trim() === "") body = "(No content found - Parser empty)";
 
         addMessage('user', 'Summarize this email.');
         // We pass the email content as context
@@ -171,7 +197,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!message) return addMessage('system', 'No message selected.');
 
         const fullMessage = await browser.messages.getFull(message.id);
-        let body = fullMessage.parts ? findBody(fullMessage.parts) : fullMessage.body;
+        let body = findBody([fullMessage]);
 
         addMessage('user', 'Draft a reply.');
         const msgId = addMessage('ai', 'Drafting reply...'); // Show status
@@ -207,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!listId) return addMessage('system', 'Please select a task list first.');
 
         const fullMessage = await browser.messages.getFull(message.id);
-        let body = fullMessage.parts ? findBody(fullMessage.parts) : fullMessage.body;
+        let body = findBody([fullMessage]);
 
         addMessage('user', 'Create a task from this email.');
         const msgId = addMessage('ai', 'Creating task...');
@@ -485,26 +511,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         let htmlBody = "";
 
         function searchParts(pts) {
+            if (!pts) return;
             for (const part of pts) {
-                if (part.contentType === 'text/plain' && part.body) {
-                    textBody = part.body;
-                    return true;
+                const cType = (part.contentType || '').toLowerCase();
+                if (cType.includes('text/plain') && part.body) {
+                    if (part.body.length > textBody.length) textBody = part.body;
                 }
-                if (part.contentType === 'text/html' && part.body) {
-                    htmlBody = part.body;
+                if (cType.includes('text/html') && part.body) {
+                    if (part.body.length > htmlBody.length) htmlBody = part.body;
                 }
                 if (part.parts) {
-                    if (searchParts(part.parts)) return true;
+                    searchParts(part.parts);
                 }
             }
-            return false;
         }
 
         searchParts(parts);
 
-        if (textBody) return textBody;
-        if (htmlBody) return extractTextFromHtml(htmlBody);
-        return "";
+        const cleanText = textBody ? textBody.trim() : "";
+        let finalHtmlText = "";
+        if (htmlBody) {
+            finalHtmlText = extractTextFromHtml(htmlBody).trim();
+        }
+
+        let bestText = "";
+        if (finalHtmlText.length > cleanText.length) {
+            bestText = finalHtmlText;
+        } else {
+            bestText = cleanText || finalHtmlText;
+        }
+
+        if (!bestText) {
+            bestText = textBody || htmlBody || "";
+        }
+
+        return bestText;
     }
 
     function extractTextFromHtml(html) {

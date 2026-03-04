@@ -44,7 +44,29 @@ export const BulkActions = {
         let context = "Here are the emails:\n";
         for (const msg of processList) {
             const full = await browser.messages.getFull(msg.id);
-            const body = (full.parts ? this._findBody(full.parts) : full.body) || "(No content)";
+            let body = this._findBody([full]);
+            if (!body || body.trim() === "") {
+                try {
+                    const rawInfo = await browser.messages.getRaw(msg.id);
+                    let rawString = rawInfo;
+                    if (rawInfo && typeof rawInfo.text === 'function') {
+                        rawString = await rawInfo.text();
+                    } else if (typeof rawInfo !== 'string') {
+                        rawString = String(rawInfo);
+                    }
+                    const parts = rawString.split(/\r?\n\r?\n/);
+                    if (parts.length > 1) {
+                        parts.shift();
+                        body = parts.join('\n\n');
+                        body = this._extractTextFromHtml(body);
+                    } else {
+                        body = rawString;
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch raw message in bulk", e);
+                }
+            }
+            if (!body || body.trim() === "") body = "(No content)";
             context += `From: ${msg.author}\nSubject: ${msg.subject}\nBody: ${body.substring(0, 500)}...\n\n`;
         }
 
@@ -76,26 +98,41 @@ export const BulkActions = {
         let htmlBody = "";
 
         const searchParts = (pts) => {
+            if (!pts) return;
             for (const part of pts) {
-                if (part.contentType === 'text/plain' && part.body) {
-                    textBody = part.body;
-                    return true;
+                const cType = (part.contentType || '').toLowerCase();
+                if (cType.includes('text/plain') && part.body) {
+                    if (part.body.length > textBody.length) textBody = part.body;
                 }
-                if (part.contentType === 'text/html' && part.body) {
-                    htmlBody = part.body;
+                if (cType.includes('text/html') && part.body) {
+                    if (part.body.length > htmlBody.length) htmlBody = part.body;
                 }
                 if (part.parts) {
-                    if (searchParts(part.parts)) return true;
+                    searchParts(part.parts);
                 }
             }
-            return false;
         };
 
         searchParts(parts);
 
-        if (textBody) return textBody;
-        if (htmlBody) return this._extractTextFromHtml(htmlBody);
-        return "";
+        const cleanText = textBody ? textBody.trim() : "";
+        let finalHtmlText = "";
+        if (htmlBody) {
+            finalHtmlText = this._extractTextFromHtml(htmlBody).trim();
+        }
+
+        let bestText = "";
+        if (finalHtmlText.length > cleanText.length) {
+            bestText = finalHtmlText;
+        } else {
+            bestText = cleanText || finalHtmlText;
+        }
+
+        if (!bestText) {
+            bestText = textBody || htmlBody || "";
+        }
+
+        return bestText;
     },
 
     _extractTextFromHtml(html) {
