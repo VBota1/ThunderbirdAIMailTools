@@ -72,13 +72,56 @@ export const BulkActions = {
     },
 
     _findBody(parts) {
-        for (const part of parts) {
-            if (part.contentType === 'text/plain' && part.body) return part.body;
-            if (part.parts) {
-                const found = this._findBody(part.parts);
-                if (found) return found;
+        let textBody = "";
+        let htmlBody = "";
+
+        const searchParts = (pts) => {
+            for (const part of pts) {
+                if (part.contentType === 'text/plain' && part.body) {
+                    textBody = part.body;
+                    return true;
+                }
+                if (part.contentType === 'text/html' && part.body) {
+                    htmlBody = part.body;
+                }
+                if (part.parts) {
+                    if (searchParts(part.parts)) return true;
+                }
             }
-        }
+            return false;
+        };
+
+        searchParts(parts);
+
+        if (textBody) return textBody;
+        if (htmlBody) return this._extractTextFromHtml(htmlBody);
         return "";
+    },
+
+    _extractTextFromHtml(html) {
+        if (typeof DOMParser !== 'undefined') {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const toRemove = doc.querySelectorAll('script, style');
+            for (const el of toRemove) el.remove();
+
+            const blocks = doc.querySelectorAll('p, div, br, h1, h2, h3, h4, h5, h6, li');
+            for (const el of blocks) {
+                if (el.tagName.toLowerCase() === 'br') {
+                    el.replaceWith('\n');
+                } else {
+                    el.appendChild(doc.createTextNode('\n'));
+                }
+            }
+            return doc.body.textContent || doc.body.innerText || "";
+        } else {
+            let text = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+            text = text.replace(/<\/(div|p|h[1-6]|li|tr)>/gi, '\n');
+            text = text.replace(/<br\s*[\/]?>/gi, '\n');
+            text = text.replace(/<[^>]+>/g, '');
+            return text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        }
     }
 };

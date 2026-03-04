@@ -327,34 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return { start, end };
     }
 
-    async function getActiveMailTab() {
-        let tabs = [];
-        try {
-            const win = await browser.windows.getCurrent();
-            if (win.type === 'popup' || win.type === 'panel') {
-                // We are in a detached window, find the main mail window or a message window
-                const allWins = await browser.windows.getAll({ populate: true });
 
-                // Prioritize message windows (dedicated email tabs) over the main window
-                const messageWins = allWins.filter(w => w.type === 'messageDisplay');
-                if (messageWins.length > 0) {
-                    tabs = await browser.tabs.query({ active: true, windowId: messageWins[0].id });
-                } else {
-                    const normalWins = allWins.filter(w => w.type === 'normal');
-                    if (normalWins.length > 0) {
-                        tabs = await browser.tabs.query({ active: true, windowId: normalWins[0].id });
-                    }
-                }
-            } else {
-                // We are in the main window (or browser_action popup usually inherits context? 
-                // Actually browser_action popup `currentWindow` is the main window)
-                tabs = await browser.tabs.query({ active: true, currentWindow: true });
-            }
-        } catch (e) {
-            console.error("Error finding mail tab:", e);
-        }
-        return tabs.length > 0 ? tabs[0] : null;
-    }
 
     async function getCurrentFolder() {
         // 1. Try currently selected message
@@ -443,13 +416,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     function formatMessage(text) {
         if (!text) return '';
 
-        // Escape HTML first to prevent XSS from raw text, 
-        // BUT we are generating HTML so we need to be careful.
-        // For a simple local tool, we might skip full sanitization if we trust the AI output,
-        // but it's better to escape basic chars except our tags.
-        // However, standard markdown parsers are complex. 
-        // Let's do a simple replacement for the requested features: **bold**, *italic*, - lists.
-
         let formatted = text
             // Escape HTML characters (basic)
             .replace(/&/g, "&amp;")
@@ -464,63 +430,41 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Newlines to <br> or wrap in <p>
             .replace(/\n/g, '<br>');
 
-        // Wrap lists in <ul> (simple heuristic: sequence of <li>)
-        // This regex approach is a bit fragile for complex nested lists but works for simple ones.
         formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-        // The above regex only wraps the FIRST list it sees and treats it as one block? 
-        // Actually, replacing all <li>...</li> sequences with <ul>...</ul> is harder with simple regex.
-        // Let's try a slightly better approach:
-        // formatting <li> items, then checking if we have them.
-
-        // Better list handling:
-        // If we see multiple <li>s, we want to wrap them. 
-        // Since we already replaced lines with <li>, properly nested ULs are hard.
-        // Let's just allow <li> to exist and style them decently even without <ul> if necessary,
-        // or just use <br> for newlines.
 
         return formatted;
     }
 
     async function getDisplayedMessage() {
-        // 1. First, try the most direct contextual approach
         try {
-            const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0) {
-                const tabId = tabs[0].id;
+            // Get all active tabs across all windows
+            const allTabs = await browser.tabs.query({ active: true });
 
-                // Try message display first (for popped out windows)
-                try {
-                    const displayed = await browser.messageDisplay.getDisplayedMessage(tabId);
-                    if (displayed) return displayed;
-                } catch (e) { }
+            // Filter out the popup's own tab
+            const validTabs = allTabs.filter(t => !t.url || !t.url.includes('popup/index.html'));
 
-                // Try selected messages next (for main window)
+            // Since `tabs.query` does not guarantee a last-focused order, and since 
+            // Thunderbird normal windows can hold both message tabs and inbox tabs,
+            // we will simply try to get a DISPLAED message from ALL active tabs first.
+            // A fully displayed message (whether in a dedicated window or a dedicated tab)
+            // represents a higher intent than a selected message in an inbox view.
+
+            for (const tab of validTabs) {
                 try {
-                    const selected = await browser.mailTabs.getSelectedMessages(tabId);
-                    if (selected && selected.messages && selected.messages.length > 0) {
-                        return selected.messages[0];
+                    const displayed = await browser.messageDisplay.getDisplayedMessages(tab.id);
+                    if (displayed && displayed.messages && displayed.messages.length > 0) {
+                        return displayed.messages[0];
                     }
                 } catch (e) { }
             }
-        } catch (e) {
-            console.log("Error querying current window tabs:", e);
-        }
 
-        // 2. If that fails (e.g., popup has its own window context), search all tabs globally
-        try {
-            const allTabs = await browser.tabs.query({});
-            // Sort to prioritize active tabs
-            allTabs.sort((a, b) => (b.active === a.active) ? 0 : b.active ? 1 : -1);
+            // If NO active tab has a message actually displayed, we fall back to checking
+            // if any active tab has a message selected (e.g., highlighted in the Inbox).
+            // We search in reverse order of windowId assuming newer windows (higher IDs)
+            // are more likely to be the one the user spawned recently, though this is a generic fallback.
+            validTabs.sort((a, b) => b.windowId - a.windowId);
 
-            for (const tab of allTabs) {
-                // Skip the popup's own tab if possible
-                if (tab.url && tab.url.includes('popup/index.html')) continue;
-
-                try {
-                    const displayed = await browser.messageDisplay.getDisplayedMessage(tab.id);
-                    if (displayed) return displayed;
-                } catch (e) { }
-
+            for (const tab of validTabs) {
                 try {
                     const selected = await browser.mailTabs.getSelectedMessages(tab.id);
                     if (selected && selected.messages && selected.messages.length > 0) {
@@ -528,22 +472,65 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 } catch (e) { }
             }
+
         } catch (e) {
-            console.error("Error finding message via global tabs:", e);
+            console.error("Error finding active message:", e);
         }
 
         return null;
     }
 
     function findBody(parts) {
-        // Recursive find text/plain
-        for (const part of parts) {
-            if (part.contentType === 'text/plain' && part.body) return part.body;
-            if (part.parts) {
-                const found = findBody(part.parts);
-                if (found) return found;
+        let textBody = "";
+        let htmlBody = "";
+
+        function searchParts(pts) {
+            for (const part of pts) {
+                if (part.contentType === 'text/plain' && part.body) {
+                    textBody = part.body;
+                    return true;
+                }
+                if (part.contentType === 'text/html' && part.body) {
+                    htmlBody = part.body;
+                }
+                if (part.parts) {
+                    if (searchParts(part.parts)) return true;
+                }
             }
+            return false;
         }
+
+        searchParts(parts);
+
+        if (textBody) return textBody;
+        if (htmlBody) return extractTextFromHtml(htmlBody);
         return "";
+    }
+
+    function extractTextFromHtml(html) {
+        if (typeof DOMParser !== 'undefined') {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const toRemove = doc.querySelectorAll('script, style');
+            for (const el of toRemove) el.remove();
+
+            const blocks = doc.querySelectorAll('p, div, br, h1, h2, h3, h4, h5, h6, li');
+            for (const el of blocks) {
+                if (el.tagName.toLowerCase() === 'br') {
+                    el.replaceWith('\n');
+                } else {
+                    el.appendChild(doc.createTextNode('\n'));
+                }
+            }
+            return doc.body.textContent || doc.body.innerText || "";
+        } else {
+            let text = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+            text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+            text = text.replace(/<\/(div|p|h[1-6]|li|tr)>/gi, '\n');
+            text = text.replace(/<br\s*[\/]?>/gi, '\n');
+            text = text.replace(/<[^>]+>/g, '');
+            return text.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        }
     }
 });
