@@ -49,6 +49,9 @@ export const BulkActions = {
         }
 
         let prompt = `Please provide a concise summary of these ${processList.length} emails. Group them by topic if possible.\n`;
+        prompt += `IMPORTANT: For each summary point or topic group, you MUST explicitly mention the original email Subject(s) it refers to, so the user knows exactly which emails to look for.\n`;
+        prompt += `Also, please ensure that no email from the list provided is omitted from the summary.\n`;
+
         if (keywords && keywords.trim() !== "") {
             prompt += `\nPay special attention and explicitly mention if any of the following keywords are discussed: ${keywords}\n`;
         }
