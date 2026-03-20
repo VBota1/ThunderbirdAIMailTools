@@ -297,7 +297,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const messages = await BulkActions.getMessagesInTimeRange(folder, range.start, range.end);
         if (messages.length === 0) return addMessage('system', 'No messages found in range.');
 
-        addMessage('system', `Found ${messages.length} messages. Summarizing...`);
+        const batchCount = Math.ceil(messages.length / BulkActions.bulkSummaryBatchSize);
+        addMessage('system', `Found ${messages.length} messages. Summarizing all of them in ${batchCount} batch${batchCount === 1 ? '' : 'es'}...`);
         const { keywords } = await browser.storage.local.get('keywords');
         const summary = await BulkActions.summarizeMessages(messages, keywords);
         addMessage('ai', summary);
@@ -312,7 +313,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const messages = await BulkActions.getMessagesInTimeRange(folder, range.start, range.end, true);
         if (messages.length === 0) return addMessage('system', 'No unread messages found in range.');
 
-        addMessage('system', `Found ${messages.length} unread messages. Summarizing...`);
+        const batchCount = Math.ceil(messages.length / BulkActions.bulkSummaryBatchSize);
+        addMessage('system', `Found ${messages.length} unread messages. Summarizing all of them in ${batchCount} batch${batchCount === 1 ? '' : 'es'}...`);
         const { keywords } = await browser.storage.local.get('keywords');
         const summary = await BulkActions.summarizeMessages(messages, keywords);
         addMessage('ai', summary);
