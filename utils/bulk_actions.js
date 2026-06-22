@@ -183,17 +183,52 @@ export const BulkActions = {
         return chunks;
     },
 
-    _buildBatchSummaryPrompt(batch, keywords, meta) {
-        let prompt = `Please provide a concise summary of these ${batch.length} emails from batch ${meta.batchIndex} of ${meta.totalBatches}. `;
-        prompt += `These emails are part of a larger set of ${meta.totalMessages} emails, so every email in this batch must be covered.\n`;
-        prompt += `IMPORTANT: For each summary point or topic group, explicitly mention the original email Subject(s) it refers to.\n`;
-        prompt += `Do not omit any email in this batch.\n`;
+    _hasKeywords(keywords) {
+        return typeof keywords === "string" && keywords.trim() !== "";
+    },
 
-        if (keywords && keywords.trim() !== "") {
-            prompt += `\nPay special attention and explicitly mention if any of the following keywords are discussed: ${keywords}\n`;
+    _buildSummaryStructureSpec(keywords) {
+        const hasKeywords = this._hasKeywords(keywords);
+
+        let spec = `Format the response as clean, professional GitHub-flavored Markdown using EXACTLY the following section outline and order. `;
+        spec += `Output ONLY the Markdown report — no preamble, sign-off, or commentary outside the sections.\n\n`;
+
+        spec += `## 📋 Overview\n`;
+        spec += `- One or two sentences giving an executive summary of the whole set (volume, dominant themes, overall urgency).\n\n`;
+
+        spec += `## ✅ Action Items\n`;
+        spec += `- A checkbox list of items that require a reply, decision, payment, or have a deadline.\n`;
+        spec += `- Format each as: \`- [ ] **<concise action>** — <owner / what is needed> _(re: "<Subject>")_\`.\n`;
+        spec += `- Put the most time-sensitive items first. If there are genuinely none, write \`_No action items._\` and nothing else under this heading.\n\n`;
+
+        spec += `## 🗂️ Key Topics\n`;
+        spec += `- Group related emails under \`###\` sub-headings (one per theme).\n`;
+        spec += `- Under each sub-heading, use concise bullets. End every bullet that refers to specific mail with its source as \`_(re: "<Subject>")_\`.\n\n`;
+
+        spec += `## 🔔 Critical Keyword Alerts\n`;
+        if (hasKeywords) {
+            spec += `- Scan every email for these tracking keywords (case-insensitive): ${keywords}.\n`;
+            spec += `- For each keyword that appears, add: \`- **<keyword>** — <where/how it came up> _(re: "<Subject>")_\`.\n`;
+            spec += `- If none of the keywords appear anywhere, write exactly \`_None detected._\` under this heading.\n\n`;
+        } else {
+            spec += `- Highlight any urgent, financial, security, legal, or deadline-bearing signals as \`- **<signal>** — <context> _(re: "<Subject>")_\`.\n`;
+            spec += `- If there is nothing critical to flag, write exactly \`_None detected._\` under this heading.\n\n`;
         }
 
-        prompt += "\nHere are the emails:\n";
+        spec += `## 📨 Email Index\n`;
+        spec += `- A compact roster with ONE line per email so coverage is complete and verifiable.\n`;
+        spec += `- Format each as: \`- **"<Subject>"** — <sender> — <one-line gist>\`.\n`;
+
+        return spec;
+    },
+
+    _buildBatchSummaryPrompt(batch, keywords, meta) {
+        let prompt = `You are summarizing batch ${meta.batchIndex} of ${meta.totalBatches} (${batch.length} of ${meta.totalMessages} total emails). `;
+        prompt += `Every email in this batch MUST be represented — do not omit any, and never state that only part of the mailbox was covered.\n\n`;
+
+        prompt += this._buildSummaryStructureSpec(keywords);
+
+        prompt += `\n\n---\n\nEmails in this batch:\n\n`;
         for (const msg of batch) {
             prompt += `From: ${msg.author}\nSubject: ${msg.subject}\nBody: ${msg.body}...\n\n`;
         }
@@ -202,19 +237,16 @@ export const BulkActions = {
     },
 
     _buildFinalSummaryPrompt(batchSummaries, totalMessages, keywords) {
-        let prompt = `You are combining partial summaries for ${totalMessages} emails into one final response.\n`;
-        prompt += `Produce a concise final summary grouped by topic where possible.\n`;
-        prompt += `IMPORTANT: Every email must still be represented, and every bullet or topic group must explicitly mention the relevant original Subject(s).\n`;
-        prompt += `Do not say that only part of the mailbox was summarized.\n`;
+        let prompt = `You are synthesizing several partial batch summaries into ONE final report covering all ${totalMessages} emails.\n`;
+        prompt += `Consolidate and de-duplicate overlapping points across batches, merge related topics, and rank action items globally by urgency. `;
+        prompt += `Every email subject from the batch summaries MUST still appear in the final Email Index, and you must never state that only part of the mailbox was summarized.\n\n`;
 
-        if (keywords && keywords.trim() !== "") {
-            prompt += `\nPay special attention and explicitly mention if any of the following keywords are discussed: ${keywords}\n`;
-        }
+        prompt += this._buildSummaryStructureSpec(keywords);
 
-        prompt += "\nBatch summaries:\n\n";
+        prompt += `\n\n---\n\nBatch summaries to merge:\n\n`;
         for (const batch of batchSummaries) {
-            prompt += `Batch ${batch.batchIndex} (${batch.messageCount} emails)\n`;
-            prompt += `Subjects: ${batch.subjects.join(' | ')}\n`;
+            prompt += `### Batch ${batch.batchIndex} (${batch.messageCount} emails)\n`;
+            prompt += `Subjects: ${batch.subjects.join(' | ')}\n\n`;
             prompt += `${batch.summary}\n\n`;
         }
 
