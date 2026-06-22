@@ -48,6 +48,48 @@
             margin-top: 10px;
             display: none;
         }
+
+        .preset-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .preset-row input,
+        .preset-row select {
+            margin-top: 0;
+            flex: 1;
+        }
+
+        .preset-row .remove-btn {
+            flex: 0 0 auto;
+            margin-top: 0;
+            padding: 8px 12px;
+            background-color: #dc3545;
+        }
+
+        .preset-row .remove-btn:hover {
+            background-color: #b02a37;
+        }
+
+        .secondary-btn {
+            background-color: #6c757d;
+            margin-top: 10px;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .secondary-btn:hover {
+            background-color: #5a6268;
+        }
+
+        .empty-hint {
+            color: #999;
+            font-size: 0.85em;
+            margin-top: 8px;
+            font-style: italic;
+        }
     </style>
 </head>
 
@@ -114,10 +156,25 @@
         </small>
     </fieldset>
 
+    <fieldset style="margin-top: 20px;">
+        <legend>Bulk Email Time Ranges</legend>
+        <small style="color: #666; font-size: 0.8em; display: block; margin-bottom: 10px;">
+            Define your own quick ranges for the Bulk Actions panel. These appear in the dropdown alongside the
+            built-in ranges. You can still pick any range on the fly from the panel via "Custom range…".
+        </small>
+
+        <label>Custom Quick Ranges:</label>
+        <div id="custom-presets-list"></div>
+        <button type="button" id="add-preset-btn" class="secondary-btn">+ Add Range</button>
+
+        <label for="default-range" style="margin-top: 20px;">Default Range (preselected in the panel):</label>
+        <select id="default-range"></select>
+    </fieldset>
+
     <button id="save-btn">Save Settings</button>
     <div id="status-msg" class="success">Settings saved!</div>
 
-    <script src="options.js"></script>
+    <script type="module" src="options.js"></script>
 </body>
 
 </html>

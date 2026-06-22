@@ -1,5 +1,6 @@
 import aiService from '../utils/ai_service.js';
 import { BulkActions } from '../utils/bulk_actions.js';
+import { BUILTIN_PRESETS, computeRange, formatToken } from '../utils/time_range.js';
 
 console.log("AI Sidebar loaded.");
 
@@ -37,6 +38,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnBulkSummarizeUnread = document.querySelector('button[data-action="bulk-summarize-unread"]');
     const btnBulkRead = document.querySelector('button[data-action="bulk-read"]');
     const selectBulkTime = document.getElementById('bulk-time-range');
+    const customRangeBox = document.getElementById('bulk-custom-range');
+    const customAmount = document.getElementById('bulk-custom-amount');
+    const customUnit = document.getElementById('bulk-custom-unit');
 
     const activeProviderSelect = document.getElementById('active-provider-select');
 
@@ -50,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const stored = await browser.storage.local.get([
         'privacyConsent', 'activeProvider', 'geminiApiKey', 'geminiModel', 'openaiApiKey', 'openaiModel',
         'claudeApiKey', 'claudeModel', 'mistralApiKey', 'mistralModel', 'ollamaApiKey', 'ollamaUrl', 'ollamaModel', 'keywords',
-        'defaultTaskList'
+        'defaultTaskList', 'bulkCustomPresets', 'bulkDefaultRange'
     ]);
 
     const privacyOverlay = document.getElementById('privacy-overlay');
@@ -100,6 +104,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
         console.error("Failed to load task lists:", e);
     }
+
+    // Populate the bulk time-range dropdown: built-in presets + user-defined
+    // custom presets + a "Custom range…" entry that reveals inline inputs.
+    const CUSTOM_OPTION = '__custom__';
+    function populateTimeRanges() {
+        const userPresets = Array.isArray(stored.bulkCustomPresets) ? stored.bulkCustomPresets : [];
+        // Built-ins first, then any user presets not already covered, de-duplicated.
+        const tokens = [...new Set([...BUILTIN_PRESETS, ...userPresets])];
+
+        selectBulkTime.innerHTML = '';
+        for (const token of tokens) {
+            const option = document.createElement('option');
+            option.value = token;
+            option.textContent = formatToken(token);
+            selectBulkTime.appendChild(option);
+        }
+
+        const customOption = document.createElement('option');
+        customOption.value = CUSTOM_OPTION;
+        customOption.textContent = 'Custom range…';
+        selectBulkTime.appendChild(customOption);
+
+        // Preselect the configured default if it is available in the list.
+        if (stored.bulkDefaultRange && tokens.includes(stored.bulkDefaultRange)) {
+            selectBulkTime.value = stored.bulkDefaultRange;
+        }
+        updateCustomVisibility();
+    }
+
+    function updateCustomVisibility() {
+        customRangeBox.classList.toggle('hidden', selectBulkTime.value !== CUSTOM_OPTION);
+    }
+
+    selectBulkTime.addEventListener('change', updateCustomVisibility);
+    populateTimeRanges();
 
     function checkConfig(provider, settings) {
         let isConfigured = false;
@@ -290,7 +329,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bulk Actions
     btnBulkSummarize.addEventListener('click', async () => {
         addMessage('system', 'Starting bulk summarization...');
-        const range = getRangeFromSelect(selectBulkTime.value);
+        const range = getSelectedRange();
         const folder = await getCurrentFolder();
         if (!folder) return addMessage('system', 'Cannot detect current folder.');
 
@@ -306,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnBulkSummarizeUnread.addEventListener('click', async () => {
         addMessage('system', 'Starting bulk summarization of unread messages...');
-        const range = getRangeFromSelect(selectBulkTime.value);
+        const range = getSelectedRange();
         const folder = await getCurrentFolder();
         if (!folder) return addMessage('system', 'Cannot detect current folder.');
 
@@ -322,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnBulkRead.addEventListener('click', async () => {
         addMessage('system', 'Marking messages as read...');
-        const range = getRangeFromSelect(selectBulkTime.value);
+        const range = getSelectedRange();
         const folder = await getCurrentFolder();
         if (!folder) return addMessage('system', 'Cannot detect current folder.');
 
@@ -333,26 +372,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         addMessage('system', `Marked ${count} messages as read.`);
     });
 
-    function getRangeFromSelect(value) {
-        const now = new Date();
-        const start = new Date();
-        let end = now;
-
-        if (value === 'yesterday') {
-            // Yesterday: Start of yesterday to end of yesterday
-            start.setDate(now.getDate() - 1);
-            start.setHours(0, 0, 0, 0);
-
-            end = new Date(start);
-            end.setHours(23, 59, 59, 999);
-            return { start, end };
+    // Resolve the currently selected time range to { start, end }. When the
+    // "Custom range…" option is active, read the inline amount + unit inputs.
+    function getSelectedRange() {
+        let token = selectBulkTime.value;
+        if (token === CUSTOM_OPTION) {
+            const amount = Math.max(1, Math.floor(Number(customAmount.value)) || 1);
+            token = `${amount}${customUnit.value}`;
         }
-
-        if (value === '24h') start.setHours(now.getHours() - 24);
-        if (value === '48h') start.setHours(now.getHours() - 48);
-        if (value === '7d') start.setDate(now.getDate() - 7);
-
-        return { start, end };
+        return computeRange(token);
     }
 
 

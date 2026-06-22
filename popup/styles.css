@@ -483,6 +483,38 @@ button {
   font-weight: 700;
 }
 
+.custom-range {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.custom-range.hidden {
+  display: none;
+}
+
+.custom-range input[type="number"] {
+  width: 80px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--secondary);
+  color: var(--text-main);
+}
+
+.custom-range input[type="number"]:focus {
+  outline: none;
+  background-color: var(--surface);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.custom-range select {
+  flex: 1;
+}
+
 .button-group {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
